@@ -39,6 +39,26 @@ def _wrap(name: str, url: str, note: str, items: List[Dict[str, Any]]) -> Dict[s
         "data": items,
     }
 
+def _filter_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    兜底过滤：去掉明显不合法的 model（例如包含空格的网页标题）。
+    """
+    out: List[Dict[str, Any]] = []
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        model = it.get("model")
+        if not isinstance(model, str):
+            continue
+        model = model.strip()
+        if not model or any(ch.isspace() for ch in model):
+            continue
+        if len(model) > 220:
+            continue
+        it["model"] = model
+        out.append(it)
+    return out
+
 
 def _safe_fetch(fn, name: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any], str]:
     """
@@ -65,6 +85,11 @@ def main() -> int:
     sf_items, sf_meta, sf_err = _safe_fetch(siliconflow.fetch, "siliconflow")
     cf_items, cf_meta, cf_err = _safe_fetch(cloudflare.fetch, "cloudflare")
     gm_items, gm_meta, gm_err = _safe_fetch(gemini.fetch, "gemini")
+
+    or_items = _filter_items(or_items)
+    sf_items = _filter_items(sf_items)
+    cf_items = _filter_items(cf_items)
+    gm_items = _filter_items(gm_items)
 
     # 写各来源转换后 JSON（用户要求：只保留转换后）
     _write_json(

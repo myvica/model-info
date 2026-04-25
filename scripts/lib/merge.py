@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
 
@@ -56,10 +57,17 @@ def merge_items(*sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             model = (it or {}).get("model")
             if not model:
                 continue
+            if not isinstance(model, str):
+                continue
+            model = model.strip()
+            # 兜底校验：model 名不应包含空白字符（常见于把网页标题误当成 model）
+            if re.search(r"\s", model):
+                continue
+            if len(model) > 220:
+                continue
             cur = by_model.get(model) or {"model": model, "model_info": {}}
             cur["model_info"] = merge_model_info(
                 cur.get("model_info") or {}, (it.get("model_info") or {})
             )
             by_model[model] = cur
     return sorted(by_model.values(), key=lambda x: x["model"])
-

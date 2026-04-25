@@ -1,4 +1,4 @@
-# onehub-modelinfo-pages
+# onehub-modelinfo
 
 用 GitHub Actions **每周 + 手动触发**生成 one-hub 可导入的“模型详情（model_info）”JSON，并通过 GitHub Pages 托管成一个稳定的 HTTPS 数据源（支持子域名绑定）。
 
@@ -12,7 +12,7 @@ Pages 根目录会有：
 - `cloudflare.model_info.json`（无 Secrets：从公开文档 best-effort 抓取）
 - `gemini.model_info.json`（无 Secrets：从公开文档 best-effort 抓取）
 
-> 说明：你明确“不放 Secrets”，因此 Cloudflare/Gemini 只能抓公开页面，字段不保证全量/结构化，但不会阻塞总表生成。
+> 说明：不放 Secrets”，因此 Cloudflare/Gemini 只抓公开页面，字段不保证全量/结构化。
 
 ## one-hub 怎么填
 

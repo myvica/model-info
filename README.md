@@ -1,4 +1,4 @@
-# onehub-modelinfo
+# onehub-modelinfo-pages
 
 用 GitHub Actions **每周 + 手动触发**生成 one-hub 可导入的“模型详情（model_info）”JSON，并通过 GitHub Pages 托管成一个稳定的 HTTPS 数据源（支持子域名绑定）。
 
@@ -9,10 +9,6 @@ Pages 根目录会有：
 - `onehub.model_info.json`（合并总表，推荐 one-hub 直接用这个）
 - `openrouter.model_info.json`
 - `siliconflow.model_info.json`
-- `cloudflare.model_info.json`（无 Secrets：从公开文档 best-effort 抓取）
-- `gemini.model_info.json`（无 Secrets：从公开文档 best-effort 抓取）
-
-> 说明：不放 Secrets”，因此 Cloudflare/Gemini 只抓公开页面，字段不保证全量/结构化。
 
 ## one-hub 怎么填
 
@@ -31,4 +27,3 @@ pip install -r requirements.txt
 python scripts/generate.py --out dist
 ls dist
 ```
-

@@ -13,7 +13,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from scripts.lib.merge import merge_items
-from scripts.sources import cloudflare, gemini, openrouter, siliconflow
+from scripts.sources import openrouter, siliconflow
 
 
 SCHEMA_VERSION = 1
@@ -83,13 +83,9 @@ def main() -> int:
     # 逐来源抓取（失败则该来源输出空 data，但仍生成文件）
     or_items, or_meta, or_err = _safe_fetch(openrouter.fetch, "openrouter")
     sf_items, sf_meta, sf_err = _safe_fetch(siliconflow.fetch, "siliconflow")
-    cf_items, cf_meta, cf_err = _safe_fetch(cloudflare.fetch, "cloudflare")
-    gm_items, gm_meta, gm_err = _safe_fetch(gemini.fetch, "gemini")
 
     or_items = _filter_items(or_items)
     sf_items = _filter_items(sf_items)
-    cf_items = _filter_items(cf_items)
-    gm_items = _filter_items(gm_items)
 
     # 写各来源转换后 JSON（用户要求：只保留转换后）
     _write_json(
@@ -110,26 +106,8 @@ def main() -> int:
             "data": sf_items,
         },
     )
-    _write_json(
-        os.path.join(out_dir, "cloudflare.model_info.json"),
-        {
-            "schema_version": SCHEMA_VERSION,
-            "generated_at": int(time.time()),
-            "source": {**cf_meta, "error": cf_err} if cf_err else cf_meta,
-            "data": cf_items,
-        },
-    )
-    _write_json(
-        os.path.join(out_dir, "gemini.model_info.json"),
-        {
-            "schema_version": SCHEMA_VERSION,
-            "generated_at": int(time.time()),
-            "source": {**gm_meta, "error": gm_err} if gm_err else gm_meta,
-            "data": gm_items,
-        },
-    )
 
-    merged = merge_items(or_items, sf_items, cf_items, gm_items)
+    merged = merge_items(or_items, sf_items)
     _write_json(
         os.path.join(out_dir, "onehub.model_info.json"),
         {
@@ -137,12 +115,10 @@ def main() -> int:
             "generated_at": int(time.time()),
             "source": {
                 "name": "merged",
-                "note": "openrouter+siliconflow+cloudflare+gemini",
+                "note": "openrouter+siliconflow",
                 "sources": [
                     {**or_meta, **({"error": or_err} if or_err else {})},
                     {**sf_meta, **({"error": sf_err} if sf_err else {})},
-                    {**cf_meta, **({"error": cf_err} if cf_err else {})},
-                    {**gm_meta, **({"error": gm_err} if gm_err else {})},
                 ],
             },
             "data": merged,
@@ -154,8 +130,6 @@ def main() -> int:
         "onehub.model_info.json",
         "openrouter.model_info.json",
         "siliconflow.model_info.json",
-        "cloudflare.model_info.json",
-        "gemini.model_info.json",
     ):
         print(" -", os.path.join(out_dir, fn))
 

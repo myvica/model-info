@@ -13,7 +13,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from scripts.lib.merge import merge_items
-from scripts.sources import litellm, openrouter, siliconflow
+from scripts.sources import cloudflare, litellm, openrouter, siliconflow
 
 
 SCHEMA_VERSION = 1
@@ -215,19 +215,23 @@ def main() -> int:
     # 逐来源抓取（失败则该来源输出空 data，但仍生成文件）
     or_items, or_meta, or_err = _safe_fetch(openrouter.fetch, "openrouter")
     sf_items, sf_meta, sf_err = _safe_fetch(siliconflow.fetch, "siliconflow")
+    cf_items, cf_meta, cf_err = _safe_fetch(cloudflare.fetch, "cloudflare")
     ll_map, ll_meta, ll_err = _safe_fetch_any(litellm.fetch, "litellm")
 
     or_items = _filter_items(or_items)
     sf_items = _filter_items(sf_items)
+    cf_items = _filter_items(cf_items)
     or_items = _sanitize_model_info(or_items)
     sf_items = _sanitize_model_info(sf_items)
+    cf_items = _sanitize_model_info(cf_items)
     or_items = _clean_tags(or_items)
     sf_items = _clean_tags(sf_items)
+    cf_items = _clean_tags(cf_items)
 
     # LiteLLM：只对现有模型精确匹配补全（不引入新增模型）
     ll_items: List[Dict[str, Any]] = []
     if isinstance(ll_map, dict):
-        ll_items = _litellm_enrich_existing(or_items + sf_items, ll_map)
+        ll_items = _litellm_enrich_existing(or_items + sf_items + cf_items, ll_map)
         ll_items = _filter_items(ll_items)
         ll_items = _sanitize_model_info(ll_items)
         ll_items = _clean_tags(ll_items)
@@ -251,6 +255,15 @@ def main() -> int:
             "data": sf_items,
         },
     )
+    _write_json(
+        os.path.join(out_dir, "cloudflare.model_info.json"),
+        {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": int(time.time()),
+            "source": {**cf_meta, "error": cf_err} if cf_err else cf_meta,
+            "data": cf_items,
+        },
+    )
 
     # LiteLLM 补全明细（只包含命中项）
     _write_json(
@@ -263,7 +276,7 @@ def main() -> int:
         },
     )
 
-    merged = merge_items(or_items, sf_items, ll_items)
+    merged = merge_items(or_items, sf_items, cf_items, ll_items)
     merged = _sanitize_model_info(merged)
     merged = _clean_tags(merged)
     _write_json(
@@ -273,10 +286,11 @@ def main() -> int:
             "generated_at": int(time.time()),
             "source": {
                 "name": "merged",
-                "note": "openrouter+siliconflow (litellm enrich by exact match)",
+                "note": "openrouter+siliconflow+cloudflare (litellm enrich by exact match)",
                 "sources": [
                     {**or_meta, **({"error": or_err} if or_err else {})},
                     {**sf_meta, **({"error": sf_err} if sf_err else {})},
+                    {**cf_meta, **({"error": cf_err} if cf_err else {})},
                     {**ll_meta, **({"error": ll_err} if ll_err else {})},
                 ],
             },
@@ -289,6 +303,7 @@ def main() -> int:
         "onehub.model_info.json",
         "openrouter.model_info.json",
         "siliconflow.model_info.json",
+        "cloudflare.model_info.json",
         "litellm.model_info.json",
     ):
         print(" -", os.path.join(out_dir, fn))

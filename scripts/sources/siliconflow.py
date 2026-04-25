@@ -209,7 +209,8 @@ def fetch(
             ctx, mx = _parse_context_and_max_tokens(text)
             in_mods, out_mods, modality_tags = _infer_modalities(text, mid)
 
-            tags = ["siliconflow", "serverless"] + modality_tags
+            # 按需求：不输出 modality:* 这类 tags，仅保留基础分类
+            tags = ["siliconflow", "serverless"]
 
             mi: Dict[str, Any] = {
                 "model": mid,

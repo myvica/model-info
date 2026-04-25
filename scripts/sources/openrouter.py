@@ -47,9 +47,8 @@ def fetch(timeout_s: int = 30) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         if isinstance(top_provider.get("max_completion_tokens"), int):
             max_tokens = int(top_provider["max_completion_tokens"])
 
-        tags = ["openrouter", "free", f"tokenizer:{tokenizer}"]
-        if modality:
-            tags.append(f"modality:{modality}")
+        # 按需求：不输出 tokenizer:* 与 modality:* 这类 tags，仅保留基础分类
+        tags = ["openrouter", "free"]
 
         mi: Dict[str, Any] = {
             "model": mid,

@@ -60,6 +60,35 @@ def _filter_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def _clean_tags(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    统一清洗 tags：
+    - 删除 tokenizer:* 与 modality:*（即便未来某来源又加回来，也不会污染最终输出）
+    """
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        mi = it.get("model_info")
+        if not isinstance(mi, dict):
+            continue
+        tags = mi.get("tags")
+        if not isinstance(tags, list):
+            continue
+        cleaned: List[str] = []
+        seen = set()
+        for t in tags:
+            if not isinstance(t, str):
+                continue
+            if t.startswith("tokenizer:") or t.startswith("modality:"):
+                continue
+            if t in seen:
+                continue
+            seen.add(t)
+            cleaned.append(t)
+        mi["tags"] = cleaned
+    return items
+
+
 def _safe_fetch(fn, name: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any], str]:
     """
     单一来源失败不应导致整个构建失败（尤其是抓取类来源可能被风控）。
@@ -86,6 +115,8 @@ def main() -> int:
 
     or_items = _filter_items(or_items)
     sf_items = _filter_items(sf_items)
+    or_items = _clean_tags(or_items)
+    sf_items = _clean_tags(sf_items)
 
     # 写各来源转换后 JSON（用户要求：只保留转换后）
     _write_json(
@@ -108,6 +139,7 @@ def main() -> int:
     )
 
     merged = merge_items(or_items, sf_items)
+    merged = _clean_tags(merged)
     _write_json(
         os.path.join(out_dir, "onehub.model_info.json"),
         {

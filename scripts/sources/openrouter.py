@@ -30,35 +30,38 @@ def fetch(timeout_s: int = 30) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         if not isinstance(mid, str) or not mid.endswith(":free"):
             continue
 
-        # best-effort 输出模态
-        modalities: List[str] = []
-        # OpenRouter 字段可能变化，这里用“尽力而为”的兜底逻辑
-        for key in ("output_modalities", "modalities", "supported_output_modalities"):
-            v = m.get(key)
-            if isinstance(v, list) and v:
-                modalities = [str(x) for x in v if x]
-                break
-        if not modalities:
-            modalities = ["text"]
+        name = m.get("name") if isinstance(m.get("name"), str) else mid
+        desc = m.get("description") if isinstance(m.get("description"), str) else ""
 
-        desc = ""
-        if isinstance(m.get("description"), str):
-            desc = m["description"]
-        elif isinstance(m.get("name"), str):
-            desc = m["name"]
+        arch = m.get("architecture") if isinstance(m.get("architecture"), dict) else {}
+        input_mods = arch.get("input_modalities") if isinstance(arch.get("input_modalities"), list) else []
+        output_mods = arch.get("output_modalities") if isinstance(arch.get("output_modalities"), list) else []
+        tokenizer = arch.get("tokenizer") if isinstance(arch.get("tokenizer"), str) else "Other"
+        modality = arch.get("modality") if isinstance(arch.get("modality"), str) else ""
+
+        context_len = m.get("context_length") if isinstance(m.get("context_length"), int) else 0
+        top_provider = m.get("top_provider") if isinstance(m.get("top_provider"), dict) else {}
+        if not context_len and isinstance(top_provider.get("context_length"), int):
+            context_len = int(top_provider["context_length"])
+        max_tokens = 0
+        if isinstance(top_provider.get("max_completion_tokens"), int):
+            max_tokens = int(top_provider["max_completion_tokens"])
+
+        tags = ["openrouter", "free", f"tokenizer:{tokenizer}"]
+        if modality:
+            tags.append(f"modality:{modality}")
 
         mi: Dict[str, Any] = {
+            "model": mid,
+            "name": name,
             "description": desc,
-            "modalities": modalities,
-            "tags": ["free", "openrouter"],
+            "context_length": context_len,
+            "max_tokens": max_tokens,
+            "input_modalities": [str(x) for x in input_mods if x],
+            "output_modalities": [str(x) for x in output_mods if x],
+            "tags": tags,
+            "support_url": [f"https://openrouter.ai/{mid}"],
         }
-
-        # context_length best-effort
-        for key in ("context_length", "context", "max_context_length", "max_tokens"):
-            v = m.get(key)
-            if isinstance(v, int) and v > 0:
-                mi["context_length"] = v
-                break
 
         items.append({"model": mid, "model_info": mi})
 
@@ -68,4 +71,3 @@ def fetch(timeout_s: int = 30) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         "note": "free-only by suffix :free",
     }
     return items, meta
-

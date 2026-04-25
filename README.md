@@ -9,6 +9,7 @@ Pages 根目录会有：
 - `onehub.model_info.json`（合并总表，推荐 one-hub 直接用这个）
 - `openrouter.model_info.json`
 - `siliconflow.model_info.json`
+- `litellm.model_info.json`（仅“命中补全明细”：只包含与现有模型同名的 LiteLLM 条目，用于补全 context/max_tokens/模态等字段）
 
 ## one-hub 怎么填
 

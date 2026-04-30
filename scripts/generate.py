@@ -13,7 +13,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from scripts.lib.merge import merge_items
-from scripts.sources import cloudflare, litellm, openrouter, siliconflow
+from scripts.sources import cloudflare, litellm, openrouter, poe, siliconflow
 
 
 SCHEMA_VERSION = 1
@@ -216,22 +216,36 @@ def main() -> int:
     or_items, or_meta, or_err = _safe_fetch(openrouter.fetch, "openrouter")
     sf_items, sf_meta, sf_err = _safe_fetch(siliconflow.fetch, "siliconflow")
     cf_items, cf_meta, cf_err = _safe_fetch(cloudflare.fetch, "cloudflare")
+    poe_items, poe_meta, poe_err = _safe_fetch(poe.fetch, "poe")
     ll_map, ll_meta, ll_err = _safe_fetch_any(litellm.fetch, "litellm")
 
     or_items = _filter_items(or_items)
     sf_items = _filter_items(sf_items)
     cf_items = _filter_items(cf_items)
+    poe_items = _filter_items(poe_items)
     or_items = _sanitize_model_info(or_items)
     sf_items = _sanitize_model_info(sf_items)
     cf_items = _sanitize_model_info(cf_items)
+    poe_items = _sanitize_model_info(poe_items)
     or_items = _clean_tags(or_items)
     sf_items = _clean_tags(sf_items)
     cf_items = _clean_tags(cf_items)
+    poe_items = _clean_tags(poe_items)
+
+    # Poe：独立 JSON 全量保留；合并总表时只合并 output_modalities 含 text 的模型
+    poe_text_items: List[Dict[str, Any]] = []
+    for it in poe_items:
+        mi = it.get("model_info") if isinstance(it, dict) else None
+        if not isinstance(mi, dict):
+            continue
+        out_mods = mi.get("output_modalities")
+        if isinstance(out_mods, list) and "text" in out_mods:
+            poe_text_items.append(it)
 
     # LiteLLM：只对现有模型精确匹配补全（不引入新增模型）
     ll_items: List[Dict[str, Any]] = []
     if isinstance(ll_map, dict):
-        ll_items = _litellm_enrich_existing(or_items + sf_items + cf_items, ll_map)
+        ll_items = _litellm_enrich_existing(or_items + sf_items + cf_items + poe_text_items, ll_map)
         ll_items = _filter_items(ll_items)
         ll_items = _sanitize_model_info(ll_items)
         ll_items = _clean_tags(ll_items)
@@ -264,6 +278,15 @@ def main() -> int:
             "data": cf_items,
         },
     )
+    _write_json(
+        os.path.join(out_dir, "poe.model_info.json"),
+        {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": int(time.time()),
+            "source": {**poe_meta, "error": poe_err} if poe_err else poe_meta,
+            "data": poe_items,
+        },
+    )
 
     # LiteLLM 补全明细（只包含命中项）
     _write_json(
@@ -276,7 +299,7 @@ def main() -> int:
         },
     )
 
-    merged = merge_items(or_items, sf_items, cf_items, ll_items)
+    merged = merge_items(or_items, sf_items, cf_items, poe_text_items, ll_items)
     merged = _sanitize_model_info(merged)
     merged = _clean_tags(merged)
     _write_json(
@@ -286,11 +309,12 @@ def main() -> int:
             "generated_at": int(time.time()),
             "source": {
                 "name": "merged",
-                "note": "openrouter+siliconflow+cloudflare (litellm enrich by exact match)",
+                "note": "openrouter+siliconflow+cloudflare+poe(text-only) (litellm enrich by exact match)",
                 "sources": [
                     {**or_meta, **({"error": or_err} if or_err else {})},
                     {**sf_meta, **({"error": sf_err} if sf_err else {})},
                     {**cf_meta, **({"error": cf_err} if cf_err else {})},
+                    {**poe_meta, **({"error": poe_err} if poe_err else {})},
                     {**ll_meta, **({"error": ll_err} if ll_err else {})},
                 ],
             },
@@ -304,6 +328,7 @@ def main() -> int:
         "openrouter.model_info.json",
         "siliconflow.model_info.json",
         "cloudflare.model_info.json",
+        "poe.model_info.json",
         "litellm.model_info.json",
     ):
         print(" -", os.path.join(out_dir, fn))

@@ -10,6 +10,7 @@ Pages 根目录会有：
 - `openrouter.model_info.json`
 - `siliconflow.model_info.json`
 - `cloudflare.model_info.json`（Cloudflare 公开 Models API：只收录 Text Generation）
+- `poe.model_info.json`（Poe 公开 Models API：全量模型；合并总表时仅合并 output 含 text 的模型）
 - `litellm.model_info.json`（仅“命中补全明细”：只包含与现有模型同名的 LiteLLM 条目，用于补全 context/max_tokens/模态等字段）
 
 ## one-hub 怎么填
@@ -29,3 +30,4 @@ pip install -r requirements.txt
 python scripts/generate.py --out dist
 ls dist
 ```
+
